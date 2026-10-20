@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Entregáveis gerados localmente (suba o PDF pela tarefa do CP, não pelo git, se preferir)
+# prova_*.png

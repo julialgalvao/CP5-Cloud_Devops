@@ -1,0 +1,65 @@
+name: Security Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # BARREIRA 1 — GITLEAKS: bloqueia segredos (chaves, tokens, senhas) no código.
+  # PROVA 1: faça um commit com um segredo FALSO e empurre -> este job fica
+  # VERMELHO e barra o pipeline. Tire o print da aba Actions com ele falhando.
+  # ---------------------------------------------------------------------------
+  gitleaks:
+    name: Gitleaks (segredos)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # histórico completo para o Gitleaks varrer os commits
+
+      - name: Rodar Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # BARREIRA 2 — SEMGREP: análise estática (SAST). Aponta código vulnerável.
+  # PROVA 2: o app.py usa eval() -> o Semgrep sinaliza a regra eval-detected.
+  # ---------------------------------------------------------------------------
+  semgrep:
+    name: Semgrep (código vulnerável)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Rodar Semgrep (regras de segurança)
+        run: semgrep ci --config p/security-audit --config p/python
+        env:
+          # Sem token do Semgrep Cloud: roda local e falha o job se achar findings.
+          SEMGREP_RULES: "p/security-audit p/python"
+
+  # ---------------------------------------------------------------------------
+  # BARREIRA 3 — TRIVY: escaneia a IMAGEM Docker em busca de CVEs.
+  # Falha o pipeline se houver CVE CRÍTICO (slide 2: "imagem com CVE crítico").
+  # ---------------------------------------------------------------------------
+  trivy:
+    name: Trivy (CVE na imagem)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Build da imagem Docker
+        run: docker build -t cp05-site:ci .
+
+      - name: Escanear imagem com Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cp05-site:ci
+          format: table
+          exit-code: "1"          # falha o job se encontrar vulnerabilidade no nível abaixo
+          severity: CRITICAL      # barra apenas CVE CRÍTICO
+          ignore-unfixed: true    # ignora CVEs ainda sem correção disponível
