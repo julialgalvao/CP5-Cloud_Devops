@@ -56,7 +56,7 @@ jobs:
         run: docker build -t cp05-site:ci .
 
       - name: Escanear imagem com Trivy
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.29.0
         with:
           image-ref: cp05-site:ci
           format: table
